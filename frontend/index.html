@@ -23,7 +23,39 @@
     --tip-texto: #ffffff;
     --ok: #2e8b57;
     --error: #b3261e;
+    --error-fondo: #fdecea;
     --aviso: #8a5300;
+    --aviso-fondo: #fff4e0;
+    --boton-hover: #283265;
+    --borde-hover: #c3c8d2;
+    --fuente-titulos: "Public Sans", system-ui, sans-serif;
+    --radio: 12px;
+    --sombra: none;
+  }
+
+  /* ---- Tema cálido: crema, terracota y ámbar ---- */
+  [data-tema="calido"] {
+    --fondo: #fbf4ea;
+    --panel: #fffaf3;
+    --borde: #ecdcc5;
+    --texto: #3e2a1f;
+    --suave: #8a6f5c;
+    --historico: #9a3412;
+    --pronostico: #ea7a2e;
+    --banda: rgba(234, 122, 46, .18);
+    --rejilla: rgba(138, 111, 92, .15);
+    --tip-fondo: #3e2a1f;
+    --tip-texto: #fffaf3;
+    --ok: #4d7c0f;
+    --error: #b42318;
+    --error-fondo: #fdeceb;
+    --aviso: #b45309;
+    --aviso-fondo: #fef3e2;
+    --boton-hover: #7c2d12;
+    --borde-hover: #d9c2a5;
+    --fuente-titulos: Georgia, "Times New Roman", serif;
+    --radio: 16px;
+    --sombra: 0 2px 10px rgba(120, 72, 36, .08);
   }
   * { box-sizing: border-box; }
   body {
@@ -31,11 +63,23 @@
     font: 15px/1.55 "Public Sans", system-ui, sans-serif;
     background: var(--fondo);
     color: var(--texto);
+    transition: background-color .3s, color .3s;
   }
   main { max-width: 1080px; margin: 0 auto; padding: 32px 20px 48px; }
 
   header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; }
-  header h1 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -.015em; }
+  header h1 { margin: 0; font-family: var(--fuente-titulos); font-size: 1.6rem; font-weight: 700; letter-spacing: -.015em; }
+  [data-tema="calido"] header h1 { color: var(--historico); letter-spacing: 0; }
+  .cabecera-derecha { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+
+  /* Selector de tema */
+  .tema { display: inline-flex; padding: 3px; background: var(--panel); border: 1px solid var(--borde); border-radius: 999px; }
+  .tema button {
+    font: inherit; font-size: .82rem; font-weight: 600; color: var(--suave); background: transparent;
+    border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; transition: background-color .2s, color .2s;
+  }
+  .tema button[aria-pressed="true"] { background: var(--historico); color: #fff; }
+  .tema button:not([aria-pressed="true"]):hover { color: var(--texto); }
   .estado-api { display: inline-flex; align-items: center; gap: 7px; font-size: .88rem; color: var(--suave); }
   .punto { width: 8px; height: 8px; border-radius: 50%; background: #b9bfca; }
   .punto.ok { background: var(--ok); }
@@ -51,25 +95,25 @@
     font: inherit; font-weight: 600; color: #fff; background: var(--historico);
     border: 0; border-radius: 8px; padding: 9px 18px; cursor: pointer;
   }
-  .controles button:hover { background: #283265; }
+  .controles button:hover { background: var(--boton-hover); }
   .controles button:disabled { opacity: .6; cursor: wait; }
   :focus-visible { outline: 2px solid var(--pronostico); outline-offset: 2px; }
 
   .mensaje { display: none; padding: 11px 14px; border-radius: 8px; margin-bottom: 16px; }
   .mensaje.visible { display: block; }
-  .mensaje.error { background: #fdecea; color: var(--error); }
-  .mensaje.aviso { background: #fff4e0; color: var(--aviso); }
+  .mensaje.error { background: var(--error-fondo); color: var(--error); }
+  .mensaje.aviso { background: var(--aviso-fondo); color: var(--aviso); }
 
   .resumen { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-bottom: 18px; }
   .destacado {
-    background: var(--panel); border: 1px solid var(--borde); border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra);
     padding: 22px 26px; display: flex; flex-direction: column; justify-content: center;
   }
   .destacado .titulo { color: var(--suave); font-weight: 500; }
   .destacado .valor { font-size: 4rem; font-weight: 700; line-height: 1.05; letter-spacing: -.03em; color: var(--pronostico); font-variant-numeric: tabular-nums; margin: 6px 0; }
   .destacado .detalle { color: var(--suave); }
 
-  .otros { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 6px 22px; }
+  .otros { background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); padding: 6px 22px; }
   .otro { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px; padding: 13px 0; }
   .otro + .otro { border-top: 1px solid var(--borde); }
   .otro .titulo { font-weight: 500; }
@@ -77,8 +121,15 @@
   .otro .detalle { grid-column: 1 / -1; font-size: .84rem; color: var(--suave); }
   .otro.real .valor { color: var(--historico); }
 
-  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
-  .panel h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); padding: 20px 22px; margin-bottom: 18px; }
+  .panel h2 { margin: 0 0 14px; font-family: var(--fuente-titulos); font-size: 1.05rem; font-weight: 600; }
+  .destacado, .otros, .panel, .controles select { transition: background-color .3s, border-color .3s, box-shadow .3s; }
+  [data-tema="calido"] .destacado { border-top: 4px solid var(--pronostico); }
+  [data-tema="calido"] .destacado .valor { font-family: var(--fuente-titulos); letter-spacing: -.01em; }
+  [data-tema="calido"] th { background: #fbefe0; }
+  [data-tema="calido"] .mensaje.aviso { border: 1px solid #f5cf96; }
+  [data-tema="calido"] .mensaje.error { border: 1px solid #f3b8b3; }
+  [data-tema="calido"] tbody tr:hover { background: #fdf1e3; }
   .grafica { position: relative; height: 400px; }
 
   .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -86,7 +137,7 @@
   dt { color: var(--suave); }
   dd { margin: 0; font-weight: 600; text-align: right; }
 
-  details summary { cursor: pointer; font-weight: 600; }
+  details summary { cursor: pointer; font-weight: 600; font-family: var(--fuente-titulos); }
   table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 12px; font-variant-numeric: tabular-nums; }
   th, td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--borde); }
   th:first-child, td:first-child { text-align: left; }
@@ -105,7 +156,7 @@
   }
 
   .controles select, .controles button { transition: border-color .15s, background-color .15s, transform .1s; }
-  .controles select:hover { border-color: #c3c8d2; }
+  .controles select:hover { border-color: var(--borde-hover); }
   .controles button { display: inline-flex; align-items: center; gap: 8px; }
   .controles button:active { transform: scale(.97); }
   body.cargando .controles button::before {
@@ -149,7 +200,13 @@
 <main>
   <header>
     <h1>Pronóstico de consumo eléctrico</h1>
-    <div class="estado-api"><span class="punto" id="punto-api"></span><span id="texto-api">Revisando la API…</span></div>
+    <div class="cabecera-derecha">
+      <div class="tema" role="group" aria-label="Estilo de la página">
+        <button type="button" data-tema="neutro" aria-pressed="true">Neutro</button>
+        <button type="button" data-tema="calido" aria-pressed="false">Cálido</button>
+      </div>
+      <div class="estado-api"><span class="punto" id="punto-api"></span><span id="texto-api">Revisando la API…</span></div>
+    </div>
   </header>
 
   <section class="controles">
@@ -254,18 +311,43 @@
 const UNIDAD = "";
 const ZONA = "America/Bogota";
 
-const css = getComputedStyle(document.documentElement);
-const v = nombre => css.getPropertyValue(nombre).trim();
-const COLORES = {
-  historico: v("--historico"),
-  pronostico: v("--pronostico"),
-  banda: v("--banda"),
-  ejes: v("--suave"),
-  rejilla: v("--rejilla"),
-  texto: v("--texto"),
-  tipFondo: v("--tip-fondo"),
-  tipTexto: v("--tip-texto"),
-};
+// Los colores de la gráfica salen de las variables CSS del tema activo
+let COLORES = {};
+function leerColores() {
+  const css = getComputedStyle(document.documentElement);
+  const v = nombre => css.getPropertyValue(nombre).trim();
+  COLORES = {
+    historico: v("--historico"),
+    pronostico: v("--pronostico"),
+    banda: v("--banda"),
+    ejes: v("--suave"),
+    rejilla: v("--rejilla"),
+    texto: v("--texto"),
+    tipFondo: v("--tip-fondo"),
+    tipTexto: v("--tip-texto"),
+  };
+}
+
+// ---- Cambio de tema: neutro (original) o cálido
+const TEMAS = ["neutro", "calido"];
+let ultimosDatos = null;   // última respuesta de /api/prediccion, para redibujar sin pedirla otra vez
+
+function aplicarTema(tema, redibujar = true) {
+  if (!TEMAS.includes(tema)) tema = "neutro";
+  if (tema === "neutro") document.documentElement.removeAttribute("data-tema");
+  else document.documentElement.setAttribute("data-tema", tema);
+  document.querySelectorAll(".tema button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.tema === tema)));
+  try { localStorage.setItem("tema", tema); } catch {}
+  leerColores();
+  if (redibujar && ultimosDatos && typeof Chart !== "undefined") {
+    dibujarGrafica(ultimosDatos.historico, ultimosDatos.prediccion, ultimosDatos.confianza, false);
+  }
+}
+
+let temaGuardado = "neutro";
+try { temaGuardado = localStorage.getItem("tema") || "neutro"; } catch {}
+aplicarTema(temaGuardado, false);
 
 // La API manda UTC; Intl lo pasa a hora de Bogotá
 const formatoCorto = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, day: "2-digit", month: "short", hour: "numeric", hour12: true });
@@ -520,6 +602,7 @@ async function cargar(animar = true) {
     if (!datos.prediccion || !datos.prediccion.length) {
       throw new Error("La API no devolvió valores de pronóstico.");
     }
+    ultimosDatos = datos;
     dibujarGrafica(datos.historico, datos.prediccion, datos.confianza, animar);
     llenarIndicadores(datos);
     llenarDetalles(datos);
@@ -535,6 +618,8 @@ async function cargar(animar = true) {
 }
 
 document.getElementById("actualizar").addEventListener("click", () => cargar());
+document.querySelectorAll(".tema button").forEach(b =>
+  b.addEventListener("click", () => aplicarTema(b.dataset.tema)));
 ["horas", "historia", "confianza"].forEach(id => document.getElementById(id).addEventListener("change", () => cargar()));
 
 cargarSalud();
