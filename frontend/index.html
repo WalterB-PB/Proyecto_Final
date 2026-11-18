@@ -4,135 +4,154 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pronóstico de consumo eléctrico</title>
-<!--
-  FRONTEND DEL PRONÓSTICO
-  =======================
-  Usa los cuatro endpoints de la API:
-    GET /api/prediccion  -> ultima_observacion, horas_contexto_usadas, horas_rellenadas,
-                            confianza, historico[{tiempo, valor}],
-                            prediccion[{tiempo, prediccion, limite_inferior, limite_superior}]
-    GET /api/historico   -> (no se usa: /api/prediccion ya trae el histórico)
-    GET /api/modelo      -> order, seasonal_order, measurement, field, entrenado_en,
-                            n_observaciones, metricas_test, rango_entrenamiento, versiones
-    GET /api/salud       -> estado, atendido_por, modo_demo, influx_configurado,
-                            modelo_cargado, modelo_demo, measurement, field
-
-  Requisitos de la Fase 2:
-    1. Gráfica con histórico, pronóstico e intervalo   -> dibujarGrafica()
-    2. Horas en hora de Colombia                       -> horaColombia() y formatos Intl
-    3. Indicadores destacados                          -> llenarIndicadores()
-    4. Controles para elegir cuántas horas pronosticar -> barra de controles
-    5. Mensaje claro cuando la API responde con error  -> mostrarError()
--->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --fondo: #fbf4ea;
-    --panel: #fffaf3;
-    --borde: #ecdcc5;
-    --texto: #3e2a1f;
-    --suave: #8a6f5c;
-    --acento: #c2410c;        /* terracota */
-    --acento-claro: #fde3cf;
-    --historico: #9a3412;     /* óxido: datos reales */
-    --pronostico: #ea7a2e;    /* naranja: pronóstico */
-    --ok: #4d7c0f;
-    --error: #b42318;
-    --aviso: #b45309;
-    --sombra: 0 2px 10px rgba(120, 72, 36, .08);
+    --fondo: #f4f5f7;
+    --panel: #ffffff;
+    --borde: #e1e4ea;
+    --texto: #1e2330;
+    --suave: #626a7a;
+    --historico: #34407a;
+    --pronostico: #c4436a;
+    --banda: rgba(196, 67, 106, .12);
+    --rejilla: rgba(30, 35, 48, .06);
+    --tip-fondo: #1e2330;
+    --tip-texto: #ffffff;
+    --ok: #2e8b57;
+    --error: #b3261e;
+    --aviso: #8a5300;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    font: 15px/1.55 "Public Sans", system-ui, sans-serif;
     background: var(--fondo);
     color: var(--texto);
   }
-  main { max-width: 1120px; margin: 0 auto; padding: 28px 18px 44px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 20px 48px; }
 
-  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
-  header h1 { margin: 0 0 4px; font-family: Georgia, "Times New Roman", serif; font-size: 1.9rem; color: var(--acento); }
-  header p  { margin: 0; color: var(--suave); }
-
-  /* Estado del servicio (/api/salud) */
-  .estado-api {
-    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
-    background: var(--panel); border: 1px solid var(--borde); border-radius: 999px;
-    font-size: .85rem; color: var(--suave); box-shadow: var(--sombra);
-  }
-  .punto { width: 10px; height: 10px; border-radius: 50%; background: #d6c4b0; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; }
+  header h1 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -.015em; }
+  .estado-api { display: inline-flex; align-items: center; gap: 7px; font-size: .88rem; color: var(--suave); }
+  .punto { width: 8px; height: 8px; border-radius: 50%; background: #b9bfca; }
   .punto.ok { background: var(--ok); }
   .punto.mal { background: var(--error); }
 
-  /* ---- Controles ---- */
-  .controles {
-    display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
-    margin: 22px 0; padding: 16px 18px;
-    background: var(--panel); border: 1px solid var(--borde); border-radius: 16px; box-shadow: var(--sombra);
+  .controles { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 18px 0 24px; }
+  .controles label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--suave); font-weight: 500; }
+  .controles select {
+    font: inherit; color: var(--texto); background: var(--panel);
+    border: 1px solid var(--borde); border-radius: 8px; padding: 8px 12px; min-width: 150px;
   }
-  .controles label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; color: var(--suave); font-weight: 600; }
-  .controles select, .controles button {
-    font: inherit; padding: 9px 14px; border-radius: 10px;
-    border: 1px solid var(--borde); background: #fff; color: var(--texto);
+  .controles button {
+    font: inherit; font-weight: 600; color: #fff; background: var(--historico);
+    border: 0; border-radius: 8px; padding: 9px 18px; cursor: pointer;
   }
-  .controles select:focus { outline: 2px solid var(--acento-claro); border-color: var(--acento); }
-  .controles button { background: var(--acento); color: #fff; border: none; font-weight: 700; cursor: pointer; }
-  .controles button:hover { background: #9a3412; }
+  .controles button:hover { background: #283265; }
   .controles button:disabled { opacity: .6; cursor: wait; }
+  :focus-visible { outline: 2px solid var(--pronostico); outline-offset: 2px; }
 
-  /* ---- Mensajes ---- */
-  .mensaje { display: none; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; font-weight: 500; }
+  .mensaje { display: none; padding: 11px 14px; border-radius: 8px; margin-bottom: 16px; }
   .mensaje.visible { display: block; }
-  .mensaje.error { background: #fdeceb; border: 1px solid #f3b8b3; color: var(--error); }
-  .mensaje.aviso { background: #fef3e2; border: 1px solid #f5cf96; color: var(--aviso); }
+  .mensaje.error { background: #fdecea; color: var(--error); }
+  .mensaje.aviso { background: #fff4e0; color: var(--aviso); }
 
-  /* ---- Indicadores ---- */
-  .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 18px; }
-  .tarjeta {
-    background: var(--panel); border: 1px solid var(--borde); border-radius: 16px; padding: 16px 18px;
-    box-shadow: var(--sombra); border-top: 4px solid var(--pronostico);
+  .resumen { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .destacado {
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 12px;
+    padding: 22px 26px; display: flex; flex-direction: column; justify-content: center;
   }
-  .tarjeta.real { border-top-color: var(--historico); }
-  .tarjeta .titulo { font-size: .78rem; color: var(--suave); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-  .tarjeta .valor  { font-family: Georgia, serif; font-size: 2rem; font-weight: 700; margin: 6px 0 2px; }
-  .tarjeta .detalle { font-size: .85rem; color: var(--suave); }
+  .destacado .titulo { color: var(--suave); font-weight: 500; }
+  .destacado .valor { font-size: 4rem; font-weight: 700; line-height: 1.05; letter-spacing: -.03em; color: var(--pronostico); font-variant-numeric: tabular-nums; margin: 6px 0; }
+  .destacado .detalle { color: var(--suave); }
 
-  /* ---- Paneles ---- */
-  .panel {
-    background: var(--panel); border: 1px solid var(--borde); border-radius: 16px;
-    padding: 18px; margin-bottom: 18px; box-shadow: var(--sombra);
-  }
-  .panel h2 { margin: 0 0 14px; font-family: Georgia, serif; font-size: 1.15rem; color: var(--texto); }
-  .contenedor-grafica { position: relative; height: 390px; }
-  .dos-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+  .otros { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 6px 22px; }
+  .otro { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px; padding: 13px 0; }
+  .otro + .otro { border-top: 1px solid var(--borde); }
+  .otro .titulo { font-weight: 500; }
+  .otro .valor { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .otro .detalle { grid-column: 1 / -1; font-size: .84rem; color: var(--suave); }
+  .otro.real .valor { color: var(--historico); }
 
-  /* Listas de datos (detalles del pronóstico y del modelo) */
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
+  .panel h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
+  .grafica { position: relative; height: 400px; }
+
+  .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: .92rem; }
   dt { color: var(--suave); }
   dd { margin: 0; font-weight: 600; text-align: right; }
 
-  table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 12px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 12px; font-variant-numeric: tabular-nums; }
   th, td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--borde); }
   th:first-child, td:first-child { text-align: left; }
-  th { color: var(--suave); font-weight: 700; background: #fbefe0; }
-  tbody tr:hover { background: #fdf1e3; }
-  details summary { cursor: pointer; font-family: Georgia, serif; font-weight: 700; font-size: 1.1rem; }
+  th { color: var(--suave); font-weight: 600; }
 
-  footer { color: var(--suave); font-size: .8rem; text-align: center; margin-top: 10px; }
+  footer { font-size: .82rem; color: var(--suave); }
+
+  .punto.ok { position: relative; }
+  .punto.ok::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: var(--ok); animation: latido 2.4s ease-out infinite;
+  }
+  @keyframes latido {
+    0% { transform: scale(1); opacity: .5; }
+    70%, 100% { transform: scale(3); opacity: 0; }
+  }
+
+  .controles select, .controles button { transition: border-color .15s, background-color .15s, transform .1s; }
+  .controles select:hover { border-color: #c3c8d2; }
+  .controles button { display: inline-flex; align-items: center; gap: 8px; }
+  .controles button:active { transform: scale(.97); }
+  body.cargando .controles button::before {
+    content: ""; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+    animation: girar .7s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .resumen .valor, .resumen .detalle, .grafica { transition: opacity .3s; }
+  body.cargando .resumen .valor,
+  body.cargando .resumen .detalle,
+  body.cargando .grafica { opacity: .4; }
+
+  .mensaje.visible { animation: bajar .25s ease-out; }
+  @keyframes bajar { from { opacity: 0; transform: translateY(-6px); } }
+
+  details summary { list-style: none; display: flex; align-items: center; gap: 8px; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before {
+    content: ""; width: 7px; height: 7px;
+    border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave);
+    transform: rotate(-45deg); transition: transform .2s;
+  }
+  details[open] summary::before { transform: rotate(45deg); }
+  details[open] tbody tr { animation: aparecer .3s ease-out both; animation-delay: calc(var(--i, 0) * 25ms); }
+  @keyframes aparecer { from { opacity: 0; transform: translateY(4px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 820px) {
+    .resumen, .dos { grid-template-columns: 1fr; }
+    .destacado .valor { font-size: 3rem; }
+    .controles select { min-width: 0; }
+  }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <div>
-      <h1>☀️ Pronóstico de consumo eléctrico</h1>
-      <p id="subtitulo">Modelo SARIMA sobre datos de InfluxDB · horas en Colombia (UTC−5)</p>
-    </div>
-    <!-- Datos de /api/salud -->
+    <h1>Pronóstico de consumo eléctrico</h1>
     <div class="estado-api"><span class="punto" id="punto-api"></span><span id="texto-api">Revisando la API…</span></div>
   </header>
 
-  <!-- Requisito 4: controles (parámetros de /api/prediccion) -->
   <section class="controles">
     <label>Horas a pronosticar
       <select id="horas">
@@ -161,63 +180,60 @@
     <button id="actualizar">Actualizar</button>
   </section>
 
-  <!-- Requisito 5: mensajes de error y avisos -->
   <div id="error" class="mensaje error" role="alert"></div>
   <div id="aviso" class="mensaje aviso"></div>
 
-  <!-- Requisito 3: indicadores destacados -->
-  <section class="tarjetas">
-    <div class="tarjeta">
-      <div class="titulo">Próxima hora</div>
+  <section class="resumen">
+    <div class="destacado">
+      <div class="titulo">Consumo esperado en la próxima hora</div>
       <div class="valor" id="ind-proxima">–</div>
       <div class="detalle" id="ind-proxima-detalle">&nbsp;</div>
     </div>
-    <div class="tarjeta">
-      <div class="titulo">Máximo esperado</div>
-      <div class="valor" id="ind-maximo">–</div>
-      <div class="detalle" id="ind-maximo-detalle">&nbsp;</div>
-    </div>
-    <div class="tarjeta">
-      <div class="titulo">Mínimo esperado</div>
-      <div class="valor" id="ind-minimo">–</div>
-      <div class="detalle" id="ind-minimo-detalle">&nbsp;</div>
-    </div>
-    <div class="tarjeta real">
-      <div class="titulo">Último dato real</div>
-      <div class="valor" id="ind-ultimo">–</div>
-      <div class="detalle" id="ind-ultimo-detalle">&nbsp;</div>
+    <div class="otros">
+      <div class="otro">
+        <span class="titulo">Máximo esperado</span>
+        <span class="valor" id="ind-maximo">–</span>
+        <span class="detalle" id="ind-maximo-detalle">&nbsp;</span>
+      </div>
+      <div class="otro">
+        <span class="titulo">Mínimo esperado</span>
+        <span class="valor" id="ind-minimo">–</span>
+        <span class="detalle" id="ind-minimo-detalle">&nbsp;</span>
+      </div>
+      <div class="otro real">
+        <span class="titulo">Último dato real</span>
+        <span class="valor" id="ind-ultimo">–</span>
+        <span class="detalle" id="ind-ultimo-detalle">&nbsp;</span>
+      </div>
     </div>
   </section>
 
-  <!-- Requisito 1: gráfica -->
   <section class="panel">
-    <h2>Histórico y pronóstico</h2>
-    <div class="contenedor-grafica"><canvas id="grafica"></canvas></div>
+    <h2>Histórico y pronóstico (hora de Colombia)</h2>
+    <div class="grafica"><canvas id="grafica"></canvas></div>
   </section>
 
-  <div class="dos-columnas">
-    <!-- Metadatos de /api/prediccion -->
+  <div class="dos">
     <section class="panel">
-      <h2>Detalles de esta consulta</h2>
+      <h2>Esta consulta</h2>
       <dl>
-        <dt>Último dato real</dt>           <dd id="det-ultima">–</dd>
-        <dt>Horas de historia usadas</dt>   <dd id="det-contexto">–</dd>
-        <dt>Horas sin dato rellenadas</dt>  <dd id="det-rellenadas">–</dd>
-        <dt>Nivel de confianza</dt>         <dd id="det-confianza">–</dd>
-        <dt>Horas pronosticadas</dt>        <dd id="det-pasos">–</dd>
+        <dt>Último dato real</dt>          <dd id="det-ultima">–</dd>
+        <dt>Historia usada</dt>            <dd id="det-contexto">–</dd>
+        <dt>Horas sin dato rellenadas</dt> <dd id="det-rellenadas">–</dd>
+        <dt>Confianza</dt>                 <dd id="det-confianza">–</dd>
+        <dt>Horas pronosticadas</dt>       <dd id="det-pasos">–</dd>
       </dl>
     </section>
-
-    <!-- Datos de /api/modelo -->
     <section class="panel">
       <h2>Modelo</h2>
       <dl>
-        <dt>Serie</dt>                    <dd id="mod-serie">–</dd>
-        <dt>Órdenes</dt>                  <dd id="mod-orden">–</dd>
-        <dt>Entrenado</dt>                <dd id="mod-entrenado">–</dd>
-        <dt>Datos de entrenamiento</dt>   <dd id="mod-rango">–</dd>
-        <dt>Error en prueba (MAE)</dt>    <dd id="mod-mae">–</dd>
-        <dt>RMSE · MAPE</dt>              <dd id="mod-rmse">–</dd>
+        <dt>Serie</dt>                  <dd id="mod-serie">–</dd>
+        <dt>Órdenes</dt>                <dd id="mod-orden">–</dd>
+        <dt>Entrenado</dt>              <dd id="mod-entrenado">–</dd>
+        <dt>Datos de entrenamiento</dt> <dd id="mod-rango">–</dd>
+        <dt>MAE en prueba</dt>          <dd id="mod-mae">–</dd>
+        <dt>RMSE</dt>                   <dd id="mod-rmse">–</dd>
+        <dt>MAPE</dt>                   <dd id="mod-mape">–</dd>
       </dl>
     </section>
   </div>
@@ -226,132 +242,166 @@
     <details>
       <summary>Ver tabla del pronóstico</summary>
       <table>
-        <thead><tr><th>Hora (Colombia)</th><th>Pronóstico</th><th>Límite inferior</th><th>Límite superior</th></tr></thead>
+        <thead><tr><th>Hora</th><th>Pronóstico</th><th>Inferior</th><th>Superior</th></tr></thead>
         <tbody id="filas"></tbody>
       </table>
     </details>
   </section>
 
-  <footer id="pie">Proyecto final · Programación Avanzada</footer>
+  <footer>Proyecto final, Programación Avanzada. <span id="actualizado"></span></footer>
 </main>
-
 <script>
-// ================================================================ utilidades
-
-// Unidad del consumo. Cámbiala si sabes en qué mide tu sensor (p. ej. "W" o "kWh").
 const UNIDAD = "";
+const ZONA = "America/Bogota";
 
+const css = getComputedStyle(document.documentElement);
+const v = nombre => css.getPropertyValue(nombre).trim();
 const COLORES = {
-  historico: "#9a3412",
-  pronostico: "#ea7a2e",
-  banda: "rgba(234, 122, 46, .18)",
-  ejes: "#8a6f5c",
-  rejilla: "rgba(138, 111, 92, .15)",
+  historico: v("--historico"),
+  pronostico: v("--pronostico"),
+  banda: v("--banda"),
+  ejes: v("--suave"),
+  rejilla: v("--rejilla"),
+  texto: v("--texto"),
+  tipFondo: v("--tip-fondo"),
+  tipTexto: v("--tip-texto"),
 };
 
-// Requisito 2: la API entrega las horas en UTC ("2026-11-17T21:00:00Z").
-// Con timeZone "America/Bogota" el navegador las pasa a hora de Colombia (UTC−5).
-const ZONA = "America/Bogota";
+// La API manda UTC; Intl lo pasa a hora de Bogotá
 const formatoCorto = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, day: "2-digit", month: "short", hour: "numeric", hour12: true });
 const formatoHora  = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, hour: "numeric", minute: "2-digit", hour12: true });
 const formatoFecha = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, weekday: "short", day: "2-digit", month: "short" });
 const formatoDia   = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, day: "2-digit", month: "short", year: "numeric" });
 
 const horaColombia = iso => formatoCorto.format(new Date(iso));
-
-// /api/modelo entrega rango_entrenamiento como "2026-10-18 21:00:00" (UTC, sin "Z")
 const desdeTextoUTC = texto => new Date(texto.replace(" ", "T") + "Z");
-
-const numero = v => Number(v).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + (UNIDAD ? " " + UNIDAD : "");
+const dec = x => Number(x).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const numero = x => Number(x).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + (UNIDAD ? " " + UNIDAD : "");
 
 function poner(id, texto) { document.getElementById(id).textContent = texto; }
 
-function mostrarError(texto) {
-  const caja = document.getElementById("error");
+function mostrarCaja(id, texto) {
+  const caja = document.getElementById(id);
   caja.textContent = texto;
   caja.classList.toggle("visible", Boolean(texto));
 }
-function mostrarAviso(texto) {
-  const caja = document.getElementById("aviso");
-  caja.textContent = texto;
-  caja.classList.toggle("visible", Boolean(texto));
-}
+const mostrarError = t => mostrarCaja("error", t);
+const mostrarAviso = t => mostrarCaja("aviso", t);
 
-// Pide una URL a la API. Si la respuesta no es exitosa, lanza un error
-// con el mensaje que FastAPI pone en el campo "detail".
 async function pedir(url) {
   let respuesta;
   try {
     respuesta = await fetch(url);
   } catch {
-    throw new Error("No se pudo conectar con la API. ¿Está corriendo uvicorn en el Codespace?");
+    throw new Error("No se pudo conectar con la API. Revisa que uvicorn esté corriendo en el Codespace.");
   }
   let datos = null;
-  try { datos = await respuesta.json(); } catch { /* respuesta sin JSON (p. ej. 502 del proxy) */ }
+  try { datos = await respuesta.json(); } catch {}
   if (!respuesta.ok) {
     let detalle = datos && datos.detail;
-    if (Array.isArray(detalle)) detalle = detalle.map(d => d.msg).join("; ");   // errores de validación (422)
+    if (Array.isArray(detalle)) detalle = detalle.map(d => d.msg).join("; ");
     throw new Error(`La API respondió con error ${respuesta.status}: ${detalle || respuesta.statusText}`);
   }
   return datos;
 }
 
-// ================================================================ /api/salud
 async function cargarSalud() {
   const punto = document.getElementById("punto-api");
   try {
     const s = await pedir("/api/salud");
     punto.className = "punto ok";
-    poner("texto-api", `API en línea · atendido por ${s.atendido_por}`);
-
-    // Avisos según el estado del servicio
+    poner("texto-api", `API en línea (${s.atendido_por})`);
     if (s.modo_demo || s.modelo_demo) {
-      mostrarAviso("⚠ La API está en modo demo: los datos o el modelo son sintéticos, no los reales.");
+      mostrarAviso("La API está en modo demo: los datos o el modelo son sintéticos.");
     } else if (!s.modelo_cargado) {
-      mostrarAviso("⚠ La API no tiene un modelo cargado. Sube models/sarima_config.json.");
+      mostrarAviso("La API no tiene un modelo cargado. Sube models/sarima_config.json.");
     } else if (!s.influx_configurado) {
-      mostrarAviso("⚠ Faltan las variables de InfluxDB en el servidor.");
+      mostrarAviso("Faltan las variables de InfluxDB en el servidor.");
     }
-  } catch (error) {
+  } catch {
     punto.className = "punto mal";
     poner("texto-api", "API sin respuesta");
   }
 }
 
-// ================================================================ /api/modelo
 async function cargarModelo() {
   try {
     const m = await pedir("/api/modelo");
     const mt = m.metricas_test || {};
-    poner("subtitulo", `${m.measurement} / ${m.field} · Modelo SARIMA sobre datos de InfluxDB · horas en Colombia (UTC−5)`);
     poner("mod-serie", `${m.measurement} / ${m.field}`);
     poner("mod-orden", `SARIMA(${m.order.join(",")})×(${m.seasonal_order.join(",")})`);
     poner("mod-entrenado", m.entrenado_en);
     if (m.rango_entrenamiento) {
       const ini = desdeTextoUTC(m.rango_entrenamiento.inicio);
       const fin = desdeTextoUTC(m.rango_entrenamiento.fin);
-      poner("mod-rango", `${m.n_observaciones} h · ${formatoDia.format(ini)} → ${formatoDia.format(fin)}`);
+      poner("mod-rango", `${m.n_observaciones} h, ${formatoDia.format(ini)} a ${formatoDia.format(fin)}`);
     } else {
       poner("mod-rango", `${m.n_observaciones} horas`);
     }
     poner("mod-mae", mt.MAE != null ? numero(mt.MAE) : "–");
-    poner("mod-rmse", `${mt.RMSE != null ? numero(mt.RMSE) : "–"} · ${mt["MAPE_%"] != null ? mt["MAPE_%"].toFixed(1) + " %" : "–"}`);
+    poner("mod-rmse", mt.RMSE != null ? numero(mt.RMSE) : "–");
+    poner("mod-mape", mt["MAPE_%"] != null ? dec(mt["MAPE_%"]) + " %" : "–");
   } catch (error) {
     poner("mod-serie", "No disponible");
-    mostrarError("❌ " + error.message);
+    mostrarError(error.message);
   }
 }
 
-// ================================================================ gráfica (requisito 1)
 let grafica = null;
+const sinMovimiento = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const facilidad = x => 1 - Math.pow(1 - x, 3);
 
-function dibujarGrafica(historico, prediccion, confianza) {
-  // Eje X: horas del histórico + horas del pronóstico, en hora de Colombia
-  const etiquetas = [...historico.map(h => h.tiempo), ...prediccion.map(p => p.tiempo)].map(horaColombia);
+// recorta las líneas para que se dibujen de izquierda a derecha
+let progreso = 1;
+let cuadroTrazo = 0;
+const revelar = {
+  id: "revelar",
+  beforeDatasetsDraw(chart) {
+    const a = chart.chartArea;
+    chart.ctx.save();
+    chart.ctx.beginPath();
+    chart.ctx.rect(a.left, a.top - 10, (a.right - a.left + 8) * progreso, a.bottom - a.top + 20);
+    chart.ctx.clip();
+  },
+  afterDatasetsDraw(chart) { chart.ctx.restore(); },
+};
+
+function animarTrazo(chart, ms = 1400) {
+  cancelAnimationFrame(cuadroTrazo);
+  if (sinMovimiento) { progreso = 1; chart.draw(); return; }
+  const t0 = performance.now();
+  const paso = t => {
+    const x = Math.min((t - t0) / ms, 1);
+    progreso = facilidad(x);
+    chart.draw();
+    if (x < 1) cuadroTrazo = requestAnimationFrame(paso);
+  };
+  progreso = 0;
+  cuadroTrazo = requestAnimationFrame(paso);
+}
+
+const cuadros = {};
+function contar(id, destino, ms = 800) {
+  const el = document.getElementById(id);
+  const desde = Number(el.dataset.valor || 0);
+  el.dataset.valor = destino;
+  cancelAnimationFrame(cuadros[id]);
+  if (sinMovimiento) { el.textContent = numero(destino); return; }
+  const t0 = performance.now();
+  const paso = t => {
+    const x = Math.min((t - t0) / ms, 1);
+    el.textContent = numero(desde + (destino - desde) * facilidad(x));
+    if (x < 1) cuadros[id] = requestAnimationFrame(paso);
+  };
+  cuadros[id] = requestAnimationFrame(paso);
+}
+
+function dibujarGrafica(historico, prediccion, confianza, animar) {
+  const etiquetas = [...historico, ...prediccion].map(p => horaColombia(p.tiempo));
   const nH = historico.length;
   const vacio = n => Array(Math.max(n, 0)).fill(null);
 
-  // El pronóstico y la banda arrancan en el último dato real para que las líneas queden unidas
+  // el pronóstico arranca en el último dato real para que no quede un hueco
   const ultimo = nH ? historico[nH - 1].valor : null;
   const inicio = nH ? [...vacio(nH - 1), ultimo] : [];
   const real     = [...historico.map(h => h.valor), ...vacio(prediccion.length)];
@@ -360,36 +410,39 @@ function dibujarGrafica(historico, prediccion, confianza) {
   const inferior = [...inicio, ...prediccion.map(p => p.limite_inferior)];
 
   const datasets = [
-    { label: "Histórico (real)", data: real, borderColor: COLORES.historico, backgroundColor: COLORES.historico,
-      borderWidth: 2.5, pointRadius: 0, tension: .3 },
+    { label: "Histórico", data: real, borderColor: COLORES.historico, backgroundColor: COLORES.historico,
+      borderWidth: 2, pointRadius: 0, tension: .3 },
     { label: "Pronóstico", data: pron, borderColor: COLORES.pronostico, backgroundColor: COLORES.pronostico,
-      borderWidth: 2.5, borderDash: [7, 5], pointRadius: 2.5, tension: .3 },
-    // Banda del intervalo: se rellena desde el límite superior hasta el inferior (fill: "+1")
+      borderWidth: 2, borderDash: [6, 4], pointRadius: 2, tension: .3 },
     { label: `Intervalo ${Math.round(confianza * 100)} %`, data: superior, borderColor: "transparent",
       backgroundColor: COLORES.banda, pointRadius: 0, fill: "+1", tension: .3 },
-    { label: "límite inferior", data: inferior, borderColor: "transparent", pointRadius: 0, fill: false, tension: .3 },
+    { label: "inferior", data: inferior, borderColor: "transparent", pointRadius: 0, fill: false, tension: .3 },
   ];
 
+  cancelAnimationFrame(cuadroTrazo);
+  progreso = animar ? 0 : 1;
   if (grafica) grafica.destroy();
   grafica = new Chart(document.getElementById("grafica"), {
     type: "line",
     data: { labels: etiquetas, datasets },
+    plugins: [revelar],
     options: {
+      animation: false,
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       scales: {
-        x: { ticks: { color: COLORES.ejes, maxTicksLimit: 12 }, grid: { color: COLORES.rejilla } },
+        x: { ticks: { color: COLORES.ejes, maxTicksLimit: 10 }, grid: { color: COLORES.rejilla } },
         y: { ticks: { color: COLORES.ejes }, grid: { color: COLORES.rejilla },
              title: { display: true, text: "Consumo" + (UNIDAD ? ` (${UNIDAD})` : ""), color: COLORES.ejes } },
       },
       plugins: {
-        legend: { labels: { color: "#3e2a1f", usePointStyle: true, filter: item => item.text !== "límite inferior" } },
+        legend: { labels: { color: COLORES.texto, usePointStyle: true, filter: i => i.text !== "inferior" } },
         tooltip: {
-          backgroundColor: "#3e2a1f", titleColor: "#fde3cf", bodyColor: "#fffaf3",
-          filter: item => item.raw !== null && item.datasetIndex !== 3,
+          backgroundColor: COLORES.tipFondo, titleColor: COLORES.tipTexto, bodyColor: COLORES.tipTexto,
+          filter: i => i.raw !== null && i.datasetIndex !== 3,
           callbacks: {
             label: c => {
-              if (c.datasetIndex === 2) {   // intervalo: inferior – superior
+              if (c.datasetIndex === 2) {
                 const inf = c.chart.data.datasets[3].data[c.dataIndex];
                 return ` Intervalo: ${numero(inf)} – ${numero(c.raw)}`;
               }
@@ -400,9 +453,9 @@ function dibujarGrafica(historico, prediccion, confianza) {
       },
     },
   });
+  if (animar) animarTrazo(grafica);
 }
 
-// ================================================================ indicadores (requisito 3)
 function llenarIndicadores(datos) {
   const pred = datos.prediccion;
   const proxima = pred[0];
@@ -411,43 +464,40 @@ function llenarIndicadores(datos) {
   const nH = datos.historico.length;
   const ultimoReal = nH ? datos.historico[nH - 1].valor : null;
 
-  poner("ind-proxima", numero(proxima.prediccion));
+  contar("ind-proxima", proxima.prediccion);
   let detalle = `a las ${formatoHora.format(new Date(proxima.tiempo))}`;
   if (ultimoReal) {
     const cambio = (proxima.prediccion - ultimoReal) / ultimoReal * 100;
-    detalle += ` · ${cambio >= 0 ? "▲" : "▼"} ${Math.abs(cambio).toFixed(1)} % vs. último dato`;
+    detalle += `, ${cambio >= 0 ? "▲" : "▼"} ${dec(Math.abs(cambio))} % frente al último dato`;
   }
   poner("ind-proxima-detalle", detalle);
 
-  poner("ind-maximo", numero(maximo.prediccion));
+  contar("ind-maximo", maximo.prediccion);
   poner("ind-maximo-detalle", horaColombia(maximo.tiempo));
-  poner("ind-minimo", numero(minimo.prediccion));
+  contar("ind-minimo", minimo.prediccion);
   poner("ind-minimo-detalle", horaColombia(minimo.tiempo));
 
   const ultima = new Date(datos.ultima_observacion);
-  poner("ind-ultimo", ultimoReal !== null ? numero(ultimoReal) : "–");
+  if (ultimoReal !== null) contar("ind-ultimo", ultimoReal); else poner("ind-ultimo", "–");
   poner("ind-ultimo-detalle", `${formatoFecha.format(ultima)}, ${formatoHora.format(ultima)}`);
 }
 
-// Metadatos que devuelve /api/prediccion
 function llenarDetalles(datos) {
   const ultima = new Date(datos.ultima_observacion);
   poner("det-ultima", `${formatoFecha.format(ultima)}, ${formatoHora.format(ultima)}`);
-  poner("det-contexto", `${datos.horas_contexto_usadas} h (${(datos.horas_contexto_usadas / 24).toFixed(1)} días)`);
-  poner("det-rellenadas", datos.horas_rellenadas === 0 ? "0 · datos completos ✓" : `${datos.horas_rellenadas} h`);
+  poner("det-contexto", `${datos.horas_contexto_usadas} h (${dec(datos.horas_contexto_usadas / 24)} días)`);
+  poner("det-rellenadas", datos.horas_rellenadas === 0 ? "Ninguna" : `${datos.horas_rellenadas} h`);
   poner("det-confianza", `${Math.round(datos.confianza * 100)} %`);
   poner("det-pasos", `${datos.prediccion.length} h`);
 
-  // Si el sensor estuvo caído, el pronóstico es menos confiable
   if (datos.horas_rellenadas > 0) {
-    mostrarAviso(`⚠ La API rellenó ${datos.horas_rellenadas} hora(s) sin dato en la historia usada. ` +
-                 `El pronóstico puede ser menos confiable.`);
+    mostrarAviso(`Faltaban ${datos.horas_rellenadas} hora(s) de datos y la API las rellenó. El pronóstico puede ser menos preciso.`);
   }
 }
 
 function llenarTabla(prediccion) {
-  document.getElementById("filas").innerHTML = prediccion.map(p => `
-    <tr>
+  document.getElementById("filas").innerHTML = prediccion.map((p, i) => `
+    <tr style="--i:${i}">
       <td>${horaColombia(p.tiempo)}</td>
       <td>${numero(p.prediccion)}</td>
       <td>${numero(p.limite_inferior)}</td>
@@ -455,46 +505,48 @@ function llenarTabla(prediccion) {
     </tr>`).join("");
 }
 
-// ================================================================ /api/prediccion
-async function cargar() {
+async function cargar(animar = true) {
   const boton = document.getElementById("actualizar");
   const horas = document.getElementById("horas").value;
   const historia = document.getElementById("historia").value;
   const confianza = document.getElementById("confianza").value;
 
+  document.body.classList.add("cargando");
   boton.disabled = true;
   boton.textContent = "Cargando…";
   mostrarError("");
   try {
     const datos = await pedir(`/api/prediccion?horas=${horas}&historia=${historia}&confianza=${confianza}`);
     if (!datos.prediccion || !datos.prediccion.length) {
-      throw new Error("La API no devolvió ningún valor de pronóstico.");
+      throw new Error("La API no devolvió valores de pronóstico.");
     }
-    dibujarGrafica(datos.historico, datos.prediccion, datos.confianza);
+    dibujarGrafica(datos.historico, datos.prediccion, datos.confianza, animar);
     llenarIndicadores(datos);
     llenarDetalles(datos);
     llenarTabla(datos.prediccion);
-    poner("pie", `Proyecto final · Programación Avanzada · actualizado a las ${formatoHora.format(new Date())}`);
+    poner("actualizado", `Actualizado a las ${formatoHora.format(new Date())}`);
   } catch (error) {
-    mostrarError("❌ " + error.message);
+    mostrarError(error.message);
   } finally {
+    document.body.classList.remove("cargando");
     boton.disabled = false;
     boton.textContent = "Actualizar";
   }
 }
 
-// ================================================================ arranque
-document.getElementById("actualizar").addEventListener("click", cargar);
-["horas", "historia", "confianza"].forEach(id => document.getElementById(id).addEventListener("change", cargar));
+document.getElementById("actualizar").addEventListener("click", () => cargar());
+["horas", "historia", "confianza"].forEach(id => document.getElementById(id).addEventListener("change", () => cargar()));
 
 cargarSalud();
 cargarModelo();
 if (typeof Chart === "undefined") {
-  mostrarError("❌ No se pudo cargar la librería de gráficas (Chart.js). Revisa tu conexión a internet.");
+  mostrarError("No se pudo cargar Chart.js. Revisa la conexión a internet.");
 } else {
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   cargar();
 }
-setInterval(cargar, 10 * 60 * 1000);   // se actualiza sola cada 10 minutos
+setInterval(() => cargar(false), 10 * 60 * 1000);
+
 </script>
 </body>
 </html>
