@@ -1,1 +1,19 @@
+.env
+.env.*
+!.env.example
 
+.git
+.gitignore
+.devcontainer
+.vscode
+
+
+notebooks/
+scripts/
+pruebas.http
+README.md
+
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
