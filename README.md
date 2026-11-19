@@ -296,6 +296,11 @@ En tu repositorio de GitHub:
 
 ### El video (máximo 5 minutos)
 
+### VIDEO EVIDENCIA
+
+https://www.youtube.com/watch?v=5zqHFJV_P2A
+
+
 Reemplaza la sustentación en vivo. Muestra tu app funcionando de las dos formas:
 
 1. **Sin Docker:** ejecuta `uvicorn app.main:app --host 0.0.0.0 --port 8000`, abre tu frontend con datos reales, cambia las horas a pronosticar y abre `/api/salud` (debe decir `"modelo_demo": false`).
